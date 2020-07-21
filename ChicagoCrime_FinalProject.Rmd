@@ -1,0 +1,200 @@
+---
+title: "ChicagoCrime_FinalProject"
+author: "Harsh Bhatia"
+date: "December 5, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# loading all the necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+```
+
+## Introduction
+
+This data gives the crime rates in Chicago from the year 2001 to 2018. I obtained this dataset from the Chicago's data portal *https://data.cityofchicago.org/Public-Safety/Crimes-2001-to-present-Dashboard/5cd6-ry5g. 
+
+The file is 1.48 GB in size and contains 6752938 observations for 22 variables.
+
+I was particularly very curious to research about this dataset as Chicago was the first city I lived in after moving to United States. My stay in Chicago was around 3 month and I also have visited Chicago a number of times for personal and work reasons. Through this reaserach I wanted to get an idea of how Chicago was responding to the various efforts put in by authorities, mostly the police department, to make Chicago a safe city.
+
+The dataset reflects the reported incidents of crime in the city of Chicago from the year 2001 to present. The data contains the reports only for the initial crime reported to the City of Chicago Police Department by sources that were not verified prior any investigations. The preliminary crime classification may have been changed at a later date, and there is a possible scope of human or mechanical error at any point in recording the information and through the duration of this research paper that may still be present.   
+
+```{r}
+# reading the dataset
+chicago <- read.csv("Crimes_-_2001_to_present.csv")
+
+dim(chicago)
+str(chicago)
+```
+
+## Data Cleaning
+
+
+The original contains 22 variables with 6752938 observations and ranges from 2001 to present. 
+
+Out of the 22 variables I would select 4 variables that would most part of this project and help give a broader picture to the crime in Chicago.
+
+1. Primary.Type: Gives us the type of crime that took place, later on we split into violent and non-violent crime
+2. Arrest: Tells us if an arrest was made for the committed crime
+3. District: District in the city of Chicago where the crime was committed
+4. Year: The year in which the crime took place.
+
+We are only going to use data recorded after the year 2008.
+
+```{r}
+names(chicago)
+list <- c("Primary.Type","Arrest","District", "Year")
+chicagoClean <- chicago %>% select(list) %>% arrange(Year) %>% filter(Year >= 2008) %>%
+  group_by(Year, Primary.Type, District, Arrest) %>% summarise(total = n())
+head(chicagoClean)
+
+```
+
+There is another variable which is added into the data frame chicagoClean, *total* which is going to help us get the total crime committed every year.
+
+
+### Sorting based on type of crime
+
+Next up I wanted to sort out the crimes based upon the type of the crime committed.
+
+```{r}
+crime_reason <- chicagoClean %>% group_by(Primary.Type) %>% summarise(total = sum(total))
+crime_reason
+```
+
+Having only 33 types of crimes I later on have seperated types of crimes based on the fact that if they were violent or non-violent.
+
+
+### Sorting crime based on district
+
+Similar to the sorting based on crimes, I did another sort based upon district to get an idea of how many crimes are committed in each district. 
+
+```{r}
+crime_district <- chicagoClean %>% group_by(District) %>% summarise(total = sum(total))
+crime_district
+```
+
+After doing this sort I see that the district crime sort gives 41 values of NA. We will later on remove these NA values.
+
+
+### Sorting crimes based on year(2008 - 2018)
+
+Again, similar to what I did for type of crime and the district, I wanted to sort and get to know how many crimes were committed each year, from the year 2008 to present year 2018.
+
+```{r}
+crime_year <- chicagoClean %>% group_by(Year) %>% summarise(total = sum(total))
+crime_year
+```
+
+This gave us indication if the crime rate is doing up or down in Chicago, each year. 
+
+
+### Sorting based upon type of crime
+
+Now, I wanted to distinguish the type of crime committed into 2 categories, violent and non-violent.
+```{r}
+crime_reason
+violent <- c("ASSAULT", "BURGLARY", "CRIM SEXUAL ASSAULT", "HOMICIDE","HUMAN TRAFFICKING", "KIDNAPPING", "ROBBERY", "SEX OFFENSE", "WEAPONS VIOLATION") 
+
+non_violent <- c("ARSON", "BATTERY","CONCEALED CARRY LICENSE VIOLATION", "CRIMINAL DAMAGE", "CRIMINAL TRESPASS","DECEPTIVE PRACTICE", "GAMBLING","INTERFERENCE WITH PUBLIC OFFICER","INTIMIDATION","LIQUOR LAW VIOLATION","MOTOR VEHICLE THEFT","NARCOTICS","NON-CRIMINAL","NON-CRIMINAL (SUBJECT SPECIFIED)","OBSCENITY","OFFENSE INVOLVING CHILDREN","OTHER NARCOTIC VIOLATION","OTHER OFFENSE","PROSTITUTION","PUBLIC INDECENCY","PUBLIC PEACE VIOLATION","STALKING")
+```
+
+
+## Graphs and other visualizations
+
+
+### 2008-2018 Total Crime Graph
+
+This graph will show us how the crime rate in Chicago has changed every year since the year 2008.
+
+```{r}
+ggplot(crime_year)+ 
+  geom_bar(aes(as.character(Year), as.character(total)), stat= "identity",color = "blue",         fill ="white")+ 
+  labs(x= "Year", y= "Total")+
+  ggtitle("Total Crime Per Year")
+  
+```
+
+The graphs gives a positive indication that the crime rate in Chicago has gone down considerably from the the year 2008 to the year 2018. Decreasing by almost half in 10 years.
+
+
+### Number of crimes in each district
+
+This graph will show us which districts in Chicago are safer compared to other
+
+```{r}
+ggplot(crime_district) +
+  geom_point(mapping = aes(as.character(District), total)) +
+  labs(x= "District", y="Total")+
+  ggtitle("District Crime Total")+
+  geom_hline(color = "red", yintercept = 200000)
+```
+
+This graph shows that there are 6 districts in the city of Chicago that have more than 200,000 reported crimes. Those are district numbers 4,6,7,8,11 and 25. With district number 8 being the most crime reported district in the city and the district number 31 being the safest district in the city.
+
+
+### Type of crimes taking place and there frequency
+
+This graph is a plot of the types of crimes that took place in Chicago and there frequency in the year of 2008.
+
+```{r}
+chicagoClean%>%
+  filter(Year == "2008")%>%
+  filter(Primary.Type %in% c(violent, non_violent))%>%
+  ggplot()+
+   geom_bar(aes(x = Primary.Type, y = total, fill = Primary.Type), stat = "identity")+
+  ggtitle("Year 2008")+
+  labs(x = "Type of Crime", y = "Total")+
+  theme(legend.position = "none")+
+  coord_flip()
+```
+
+From the graph we can see that battery is the most frequently committed crime. Among violent crime, burglary was the most frequently committed crime in 2008.
+
+This graph is a plot of the types of crimes that took place in Chicago and there frequency in the year of 2018.
+
+```{r}
+chicagoClean%>%
+  filter(Year == "2018")%>%
+  filter(Primary.Type %in% c(violent, non_violent))%>%
+  ggplot()+
+   geom_bar(aes(x = Primary.Type, y = total, fill = Primary.Type), stat = "identity")+
+  ggtitle("Year 2018")+
+  labs(x = "Type of Crime", y = "Total")+
+  theme(legend.position = "none")+
+  coord_flip()
+```
+
+From the graph we can see that battery is still the most frequently committed crime in Chicago. The frequency although has gone down upon comparison to 2008. In the violent crime list however, assault is the most frequently committed violent crime in 2018 instead of burglary. 
+
+
+### Number of cases where an arrest was made
+
+The following graph is a histogram which will help us decide how many arrests were made from the year 2008 to the year 2018 in the city of Chicago.
+True indicated that the arrest was made and false indicates that there was no arrest for the case.
+
+```{r}
+chicagoClean %>%
+  ggplot()+
+  geom_histogram(mapping = aes(x= Arrest),stat = "count")+
+  coord_flip()+
+  ggtitle("Number of arrests made")+
+  theme(panel.background = element_rect(fill = "Orange"),   panel.grid.major=element_blank(), panel.grid.minor = element_blank())
+  
+
+```
+
+## Conclusion
+
+Chicago as a city has had a past of being crime infested. The data shows us that the crime rate in Chicago is high and dangerous. With certain districts being more crime infested than others. However, from this study and the avialability of the data through Chicago Police Department, we can say that the crime in Chicago is going down considerably and Chicago as a city is becoming a lot safer. Crimes in Chicago have gone down by almost a half within the 10 years. 
+
+Also, from our research we see that in Chicago there are a few districts that people visiting Chicago and also people living in Chicago should avoid at best, or atleast be more cautious and attentive if at all they have to visit those areas. 
+
+Crimes like battery, deceptive practices, criminal damages, assault are highly frequent in Chicago as per the reports. 
+
+
+Having lived in Chicago in the past for 3 months, I have to admit Chicago is one of the greatest cities in the world. Looking at the progress made by the Chicago Police Department in controlling the crime in Chicago and results that we are seeing through this research, we can conclude that Chicago is on the right path to be one of the safer and better cities in the world. 

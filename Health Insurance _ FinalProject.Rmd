@@ -1,0 +1,170 @@
+---
+title: "Health Insurance _ FinalProject"
+author: "Harsh Bhatia"
+date: "December 4, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# loading all the necessary libraries
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(tidyverse)
+
+```
+## Introduction
+This dataset includes health insurance plan benefits and it's details. I found this dataset on kaggle.*https://www.kaggle.com/hhs/health-insurance-marketplace*
+The data however was originally prepared and released by Center for Medicare and Medicaid Services (CMS) *https://www.cms.gov/cciio/resources/data-resources/marketplace-puf.html* 
+
+Through this research I planned on finding out how the Affordafle Care Act (ACA) has helped with the copay amounts for insurance.
+
+
+```{r}
+# reading the dataset
+health <- read.csv("BenefitsCostSharing.csv")
+
+dim(health)
+str(health)
+
+```
+The dataset is 1.23 GB in size and contains 32 variables with 5,048,408 observations.
+
+
+## Data Cleaning
+
+Out of the 32 variables present I will be selecting 4 variables that I think will be helpful for this project.
+
+1. BenefitName: this the benefit covered by the insurance 
+2. BusinessYear: the year the entry into the database was recorded
+3. CoinInnTier1: the copays associated with the insurance plan
+4. StateCode: the abbreviated state code with the recorded entry
+
+```{r}
+# cleaning health based on the necessary 4 columns
+names(health)
+list <- c("BenefitName","BusinessYear","CoinsInnTier1","StateCode")
+health_clean <- health %>%
+  select(list)
+dim(health_clean)
+```
+
+I wanted to focus on ChemoTherapy for this project.
+
+ChemoTherapy is the treatment of disease, especially cancer, using chemical substances. It is one of the most expensive medical treatments and requires a lot of attention and care while the patient is going through this process. There is use of multiple anti-cancer drugs involved, which makes it even more complex. The whole process of chemotherapy in itself is very long and comprises of various steps. 
+
+For someone without a proper medical insurance, chemotherapy can be real burden on the shoulders, if an unfortunate case of going through chemotherapy does walk past the life.
+
+So we will do this project and try to find out what are the kind of copays are there for chemotherapy, in US and in New Jersey also. 
+
+```{r}
+
+health_chemo <- health_clean %>% 
+  filter(BenefitName == "Chemotherapy") %>%
+  group_by(BenefitName, BusinessYear, StateCode, CoinsInnTier1)
+  
+dim(health_chemo)
+```
+
+First I want to the change the CoinsInnTier1 from factor to numeric datatype. 
+
+This is very unorganized with % symbols, so we will first clean then change to numeric datatype.
+
+```{r}
+# Change the coins in tier from factor to numeric data type
+head(health_chemo$CoinsInnTier1)
+
+health_chemo$CoinsInnTier1 <- gsub(pattern = "%",replacement =  "", x = health_chemo$CoinsInnTier1)
+head(health_chemo$CoinsInnTier1)
+
+health_chemo$CoinsInnTier1 <- as.numeric(health_chemo$CoinsInnTier1)
+
+
+```
+
+Upon changing to numeric field type we see that there were a lot of NA introduced.
+So I will set all NAs to 0
+
+```{r}
+# remove the field that have NAs
+health_chemo$CoinsInnTier1[is.na(health_chemo$CoinsInnTier1)] <- 0
+
+summary(health_chemo$CoinsInnTier1)
+```
+
+From the summary we can see that a lot of plans have either 0% copay or another fee associated with the Chemotherapy. So we will not consider these in our research.
+
+```{r}
+health_chemo <- subset(x = health_chemo, CoinsInnTier1 > 0)
+summary(health_chemo$CoinsInnTier1)
+```
+
+
+```{r}
+dim(health_chemo)
+```
+
+After cleaning the data, we now have 4 variables and 1961 observations. 
+
+
+## Graphs and other visuals
+
+
+1. In the first graph, we have the copay percentage of insurers. We are trying to see what is the most common copay percentage in the US for chemotherapy.
+
+```{r}
+ggplot(data = health_chemo) +
+  geom_bar(mapping = aes(x = CoinsInnTier1),data = health_chemo) +
+  labs(x = "Copay Percent", y = "Total Plans")+
+  ggtitle("Health Insurers Copay for Chemotherapy")
+```
+
+We can see that most of the insurers, a little over 600, have about 10% of copay.
+
+There are also a few insurers that have a copay of 50%, which is not a good sign.
+
+
+2. In the 2nd graph, we move to NJ to find out the trend in insurance plan and the copay assoicated. 
+```{r}
+health_chemo %>%
+  filter(StateCode == "NJ") %>%
+  ggplot() +
+  geom_bar(aes(CoinsInnTier1, fill = StateCode), stat = "count") +
+  labs(x = "Copay Percent", y = "Total plans") +
+  ggtitle("Health Insurers Copay for Chemotherapy in New Jersey")
+```
+
+In New Jersey, we see that the common copay is 20%, unlike that in the whole country, where most the insurers have 10% copay.
+
+We still see that NJ has some insurers that have a copay of 50%.
+
+
+3. In the 3rd graph, I focused on knowing more about people paying 50% copay for chemotherapy. 
+
+My goal was to check the trend to see what was going on year wise since the ACA was launched.
+```{r}
+health_chemo %>%
+  filter(CoinsInnTier1 == "50") %>%
+  ggplot() +
+  geom_bar(mapping = aes(x = BusinessYear, fill = StateCode))+
+  labs(x = "Year", y = "Number of Plans") +
+  ggtitle("Health insurers with copays of 50%") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+```
+
+So there is a positive trend as the number of plans with copays of 50% seems to be coming down. 
+
+
+## Conclusion
+
+Chemotherapy is a very expensive treatment and it is very necessary for the government to make sure that the people are given a proper and affordable coverage against chemotherapy. 
+Through this project we have seen some trends that give us a positive indication of how the Affordable Care Act (ACA) has benefited copay rates. 
+
+It is still worth noticing that average copay rate in the country stands at 10% while in New Jersey it is 20%, giving us an indication that NJ does not have significant number of plans which offers less copays for chemotherapy, when compared with the national average.
+
+Here, we can that the during the year 2014, 9 states had plans with copays of 50% for chemotherapy. And there were almost 80 plans in the country which had copays of 50%. 
+The number came down in 2015 and only 6 states had copays of 50%. And there were just around 50 plans in the country. 
+
+In 2016 however, only 3 states out of the 9 in 2014 had plans with copays of 50%. And the total number of plans in the country with copays of 50% almost came down by 3/4 ths to slightly over 20 plans.
+
+It is worth noticing that Pennsylvania (PA) has the most insurance plans with copays of 50%. With our state, New Jersey (NJ), also having some plans in which the insurer has to pay 50% for chemotherapy. 
